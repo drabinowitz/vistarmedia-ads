@@ -1,0 +1,70 @@
+{
+    "name": "com.vistarmedia.apps.ads",
+    "version": "1.0.0",
+    "displayName": "Vistar Media Ads",
+    "description": "This application displays ads using the Vistar ad server.",
+    "author": "Vistar Media",
+    "email": "info@vistarmedia.com",
+    "homepage": "http://www.vistarmedia.com",
+    "type": "application",
+    "assets": {
+        "icon128": "",
+        "icon256": "./app_assets/vm256.png",
+        "icon512": "",
+        "screenshot1": "./app_assets/screenshot1.jpg",
+        "screenshot2": "./app_assets/screenshot2.jpg",
+        "screenshot3": "",
+        "screenshot4": "",
+        "screenshot5": ""
+    },
+    "parameters": [
+        {
+            "name": "vistar.url",
+            "default": "http://staging.api.vistarmedia.com/api/v1/get_ad/json"
+        },
+        {
+            "name": "vistar.api_key",
+            "default": "<api key>"
+        },
+        {
+            "name": "vistar.network_id",
+            "default": "<network id>"
+        },
+        {
+            "name": "vistar.venue_id",
+            "default": "<venue id>"
+        },
+        {
+            "name": "vistar.cpm_floor_cents",
+            "default": "30"
+        },
+        {
+            "name": "vistar.ad_buffer_length",
+            "default": "12"
+        },
+        {
+            "name": "vistar.allow_audio",
+            "default": "true"
+        },
+        {
+            "name": "vistar.lat",
+            "default": "0"
+        },
+        {
+            "name": "vistar.lng",
+            "default": "0"
+        },
+        {
+            "name": "vistar.ads.playlist_impl",
+            "default": "ConsecutiveOnlyAfterFallback"
+        },
+        {
+            "name": "vistar.width",
+            "default": "1080"
+        },
+        {
+            "name": "vistar.height",
+            "default": "1920"
+        }
+    ]
+}
