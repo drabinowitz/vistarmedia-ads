@@ -17,6 +17,7 @@ class View
     @_queue = []
     @_startTime = new Date().getTime()
     @_consecutiveFailures = 0
+    @_current = undefined
 
   healthCheck: (report) =>
     now = new Date().getTime()
@@ -39,20 +40,27 @@ class View
     report status: true
 
   prepare: (offer) =>
+    container = window.document.getElementById 'content'
     @_fetch()
       .then (ad) =>
         @_cache ad
           .then =>
-            offer((done) =>
-              @_render ad
-                .then =>
-                  @_makePoPRequest ad, true
-                  done()
-                .catch (e) =>
-                  console.error "Failed to render ad #{ad.asset_url}", e
-                  @_makePoPRequest ad, false
-                  done()
-            , {id: ad.asset_url, label: ad.asset_url})
+            @_createDOMNode container, ad
+              .then (node) =>
+                offer((done) =>
+                  @_render container, ad, node
+                    .then =>
+                      @_makePoPRequest ad, true
+                      done()
+                    .catch (e) =>
+                      console.error "Failed to render ad #{ad.asset_url}", e
+                      @_makePoPRequest ad, false
+                      done()
+                , {id: ad.asset_url, label: ad.asset_url})
+              .catch (e) =>
+                console.error 'Failed to create DOM node.', e
+                @_makePoPRequest ad, false
+                offer()
           .catch (e) =>
             console.error "Failed to cache ad #{ad.asset_url}", e
             @_makePoPRequest ad, false
@@ -95,59 +103,96 @@ class View
     ad = setAsPlayed ad, status
     @_pop.write ad
 
-  _render: (ad) ->
+  _render: (container, ad, node) ->
     new promise (resolve, reject) =>
-      content = window.document.getElementById 'content'
-      while content.firstChild?
-        content.removeChild content.firstChild
+      p = if @_isVideo ad
+        @_renderVideo container, ad, node
+      else
+        @_renderImage ad, node
 
+      p.then(resolve).catch(reject)
+
+  _renderVideo: (container, ad, node) ->
+    new promise (resolve, reject) =>
+      if @_current?
+        current = document.getElementById @_current.asset_url
+        if current?
+          container.removeChild current
+
+        @_current = undefined
+
+      onSourceError = (ev) ->
+        console.warn "Video player failed to play #{ev?.target?.src}. \
+          networkState=#{video?.networkState}, \
+          readyState=#{video?.readyState}, mediaError=#{video?.error?.code}"
+        reject()
+
+      onVideoEnded = ->
+        console.info "Video ended successfully: #{ad.asset_url}"
+        resolve()
+
+      onVideoStalled = (ev) ->
+        console.warn "Video player was stalled while playing \
+          #{ev?.target?.src}. networkState=#{video?.networkState}, \
+          readyState=#{video?.readyState}, mediaError=#{video?.error?.code}"
+        reject()
+
+      node.addEventListener 'ended', onVideoEnded
+      node.addEventListener 'stalled', onVideoStalled
+
+      source = window.document.createElement 'source'
+      source.addEventListener 'error', onSourceError
+      source.setAttribute 'src', ad.asset_url
+      video.appendChild source
+
+      container.appendChild video
+      @_current = ad
+
+  _renderImage: (ad, node) ->
+    new promise (resolve, reject) =>
+      if @_current?
+        current = document.getElementById @_current.asset_url
+        if current?
+          # At any time we'll have only a handful active ads. Instead of
+          # removing the image nodes we push them back to avoid the browser
+          # to decode images again.
+          # TODO(hkaya): We should add a limit to the cached DOM nodes.
+          current.style.setProperty 'z-index', -9999
+        @_current = undefined
+
+      node.style.setProperty 'z-index', 9999
+      end = =>
+        console.log "Image ad finished: #{ad.asset_url}"
+        @_current = ad
+        resolve()
+      setTimeout end, ad.length_in_milliseconds
+
+  _createDOMNode: (container, ad) ->
+    new promise (resolve, reject) =>
+      node = undefined
       if @_isVideo ad
-        onSourceError = (ev) ->
-          console.warn "Video player failed to play #{ev?.target?.src}. \
-            networkState=#{video?.networkState}, \
-            readyState=#{video?.readyState}, mediaError=#{video?.error?.code}"
-          reject()
+        node = window.document.createElement 'video'
+        node.id = ad.asset_url
+        node.setAttribute 'autoplay', true
+        node.setAttribute 'muted', not @_config['vistar.allow_audio']
 
-        onVideoEnded = ->
-          console.info "Video ended successfully: #{ad.asset_url}"
-          resolve()
-
-        onVideoStalled = (ev) ->
-          console.warn "Video player was stalled while playing \
-            #{ev?.target?.src}. networkState=#{video?.networkState}, \
-            readyState=#{video?.readyState}, mediaError=#{video?.error?.code}"
-          reject()
-
-        video = window.document.createElement 'video'
-        video.setAttribute 'autoplay', true
-        video.setAttribute 'muted', not @_config['vistar.allow_audio']
-        video.style.setProperty 'width', '100%'
-        video.style.setProperty 'height', '100%'
-
-        source = window.document.createElement 'source'
-        source.addEventListener 'error', onSourceError
-        source.setAttribute 'src', ad.asset_url
-
-        video.addEventListener 'ended', onVideoEnded
-        video.addEventListener 'stalled', onVideoStalled
-        video.appendChild source
-        content.appendChild video
+        # TODO(hkaya): It will be better if we attach the source to the video
+        # node here. However, we need to make sure events will still get fired
+        # during the render call. Current implementation is safer but adds
+        # some overhead to the render call.
 
       else
-        url = ad.asset_url
-        div = window.document.createElement 'div'
-        div.setAttribute 'class', 'image-ad'
-        div.style.setProperty 'background', "url(#{url})"
-        div.style.setProperty 'background-repeat', 'no-repeat'
-        div.style.setProperty 'background-position', '50% 50%'
-        div.style.setProperty 'background-size', 'contain'
-        div.style.setProperty 'overflow', 'hidden'
-        content.appendChild div
+        node = document.getElementById ad.asset_url
+        if not node?
+          node = new Image()
+          node.id = ad.asset_url
+          node.onerror = reject
+          node.onload = ->
+            resolve node
+          node.src = ad.asset_url
+          container.appendChild node
+          return
 
-        end = ->
-          console.log "Image ad finished: #{url}"
-          resolve()
-
-        setTimeout end, ad.length_in_milliseconds
+      resolve node
 
 module.exports = View

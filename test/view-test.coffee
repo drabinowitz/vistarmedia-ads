@@ -12,6 +12,8 @@ describe 'View', ->
       href: ''
       search: ''
 
+    global.window.document.getElementById = sinon.stub()
+
     @view = @injector.getInstance View
 
   afterEach ->
@@ -93,6 +95,8 @@ describe 'View', ->
         new promise (resolve, reject) -> resolve ad
       cache = sinon.stub @view, '_cache', ->
         new promise (resolve, reject) -> resolve()
+      createDOMNode = sinon.stub @view, '_createDOMNode', ->
+        new promise (resolve, reject) -> resolve()
       @view.prepare offer
       process.nextTick ->
         expect(fetch).to.have.been.calledOnce
@@ -116,6 +120,8 @@ describe 'View', ->
           new promise (resolve, reject) -> resolve()
         render = sinon.stub @view, '_render', ->
           new promise (resolve, reject) -> resolve()
+        createDOMNode = sinon.stub @view, '_createDOMNode', ->
+          new promise (resolve, reject) -> resolve()
         pop = sinon.stub @view, '_makePoPRequest', ->
         @view.prepare offer
         process.nextTick ->
@@ -124,7 +130,7 @@ describe 'View', ->
           viewDone = sinon.stub()
           offer.args[0][0] viewDone
           expect(render).to.have.been.calledOnce
-          expect(render).to.have.been.calledWith ad
+          expect(render.args[0][1]).to.deep.equal ad
           process.nextTick ->
             expect(pop).to.have.been.calledOnce
             expect(pop).to.have.been.calledWith ad, true
@@ -141,6 +147,8 @@ describe 'View', ->
           new promise (resolve, reject) -> resolve()
         render = sinon.stub @view, '_render', ->
           new promise (resolve, reject) -> reject()
+        createDOMNode = sinon.stub @view, '_createDOMNode', ->
+          new promise (resolve, reject) -> resolve()
         pop = sinon.stub @view, '_makePoPRequest', ->
         @view.prepare offer
         process.nextTick ->
@@ -149,12 +157,34 @@ describe 'View', ->
           viewDone = sinon.stub()
           offer.args[0][0] viewDone
           expect(render).to.have.been.calledOnce
-          expect(render).to.have.been.calledWith ad
+          expect(render.args[0][1]).to.deep.equal ad
           process.nextTick ->
             expect(pop).to.have.been.calledOnce
             expect(pop).to.have.been.calledWith ad, false
             expect(viewDone).to.have.been.calledOnce
             done()
+
+      it 'should expire an ad when fails to create the DOM node', (done) ->
+        offer = sinon.stub()
+        ad =
+          asset_url: 'url'
+        fetch = sinon.stub @view, '_fetch', ->
+          new promise (resolve, reject) -> resolve ad
+        cache = sinon.stub @view, '_cache', ->
+          new promise (resolve, reject) -> resolve()
+        render = sinon.stub @view, '_render', ->
+          new promise (resolve, reject) -> reject()
+        createDOMNode = sinon.stub @view, '_createDOMNode', ->
+          new promise (resolve, reject) -> reject()
+        pop = sinon.stub @view, '_makePoPRequest', ->
+        @view.prepare offer
+        process.nextTick ->
+          expect(offer).to.have.been.calledOnce
+          expect(offer.args[0]).to.have.length 0
+          expect(render).to.not.have.been.called
+          expect(pop).to.have.been.calledOnce
+          expect(pop).to.have.been.calledWith ad, false
+          done()
 
   describe '#_fetch', ->
     it 'should consume an ad from the queue', (done) ->
