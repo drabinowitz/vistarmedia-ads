@@ -17,6 +17,15 @@ init = ->
             @bindConstant('navigator').to(window.navigator)
 
         injector = new inject.Injector(new Binder)
+
+        rotate = injector.getInstance('config').rotate
+
+        if rotate
+          link = window.document.createElement 'link'
+          link.setAttribute 'rel', 'stylesheet'
+          link.setAttribute 'href', 'rotate.css'
+          window.document.body.appendChild link
+
         window.VistarAdView = injector.getInstance View
         window.Cortex.app.registerHealthCheck window.VistarAdView.healthCheck
         window.Cortex.scheduler.onPrepare window.VistarAdView.prepare

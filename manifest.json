@@ -65,6 +65,10 @@
         {
             "name": "vistar.height",
             "default": "1920"
+        },
+        {
+            "name": "vistar.rotate",
+            "default": "false"
         }
     ]
 }

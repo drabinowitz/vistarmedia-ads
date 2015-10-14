@@ -72,6 +72,7 @@ class Config
     cpmFloorCents:           @get 'vistar.cpm_floor_cents'
     minDuration:             @get 'vistar.min_duration'
     maxDuration:             @get 'vistar.max_duration'
+    rotate:                  JSON.parse(@get 'vistar.rotate')
     displayArea: [
       {
         id:               'display-0'
